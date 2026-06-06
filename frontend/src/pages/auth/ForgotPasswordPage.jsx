@@ -71,6 +71,7 @@ export default function ForgotPasswordPage() {
                       type="email"
                       placeholder="you@example.com"
                       className="pl-9"
+                      autoCapitalize="none" autoCorrect="off" spellCheck="false"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
