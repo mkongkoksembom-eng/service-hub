@@ -205,7 +205,7 @@ export default function ServiceDetailPage() {
     if (user.role !== "client") { toast.error("Only clients can book services."); return }
     setSubmitting(true)
     try {
-      await bookingsApi.create({ service: parseInt(id), ...booking })
+      await bookingsApi.create({ service_id: parseInt(id), ...booking })
       toast.success("Booking request sent! The provider will confirm shortly.")
       navigate("/client/bookings")
     } catch (err) {
