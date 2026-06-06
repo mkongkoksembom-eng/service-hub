@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Briefcase, ClipboardList, ArrowRight, Plus, TrendingUp } from "lucide-react"
-import { servicesApi, bookingsApi, paymentsApi } from "@/api"
+import { Briefcase, ClipboardList, ArrowRight, Plus } from "lucide-react"
+import { servicesApi, bookingsApi } from "@/api"
 import { useAuth } from "@/context/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,31 +18,24 @@ const STATUS_COLORS = {
 
 export default function ProviderDashboard() {
   const { user } = useAuth()
-  const [data, setData] = useState({ services: [], bookings: [], payments: [] })
+  const [data, setData] = useState({ services: [], bookings: [] })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
       servicesApi.myServices(),
       bookingsApi.providerBookings(),
-      paymentsApi.providerPayments(),
-    ]).then(([{ data: s }, { data: b }, { data: p }]) => {
+    ]).then(([{ data: s }, { data: b }]) => {
       setData({
         services: s.results || [],
         bookings: b.results || [],
-        payments: p.results || [],
       })
     }).finally(() => setLoading(false))
   }, [])
 
-  const revenue = data.payments
-    .filter(p => p.status === "paid")
-    .reduce((sum, p) => sum + parseFloat(p.amount), 0)
-
   const stats = [
     { label: "Active Services", value: data.services.filter(s => s.is_active).length, icon: Briefcase, color: "text-blue-600", to: "/provider/services" },
     { label: "Pending Bookings", value: data.bookings.filter(b => b.status === "pending").length, icon: ClipboardList, color: "text-amber-600", to: "/provider/bookings" },
-    { label: "Total Revenue", value: `${revenue.toLocaleString()} FCFA`, icon: TrendingUp, color: "text-emerald-600", to: "/provider/payments" },
   ]
 
   const recent = data.bookings.slice(0, 5)

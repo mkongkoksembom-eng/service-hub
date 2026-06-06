@@ -18,7 +18,7 @@ const CATEGORIES = [
   { icon: BookOpen, label: "Education",     delay: 0.25 },
 ]
 
-function CategoryCard({ icon: Icon, label, delay }) {
+function CategoryCard({ icon: Icon, label, delay, to }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -27,7 +27,7 @@ function CategoryCard({ icon: Icon, label, delay }) {
       transition={{ duration: 0.4, delay }}
       className="cursor-pointer group"
     >
-      <Link to="/services">
+      <Link to={to}>
         <div className="rounded-lg p-5 text-center border border-border bg-card
           hover:border-foreground/20 hover:shadow-sm transition-all duration-200">
           <div className="w-11 h-11 rounded-md bg-foreground flex items-center justify-center mx-auto mb-3
@@ -87,6 +87,7 @@ export default function LandingPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const dashboardPath = user?.role === "provider" ? "/provider/dashboard" : "/client/dashboard"
+  const browseTarget = user ? "/services" : "/register"
 
   const [stats, setStats] = useState(null)
   useEffect(() => {
@@ -95,6 +96,7 @@ export default function LandingPage() {
 
   const handleSearch = (e) => {
     e.preventDefault()
+    if (!user) { navigate("/register"); return }
     navigate(`/services${search ? `?search=${encodeURIComponent(search)}` : ""}`)
   }
 
@@ -176,7 +178,7 @@ export default function LandingPage() {
                 {stats.popular_jobs.map(tag => (
                   <button
                     key={tag}
-                    onClick={() => navigate(`/services?search=${encodeURIComponent(tag)}`)}
+                    onClick={() => user ? navigate(`/services?search=${encodeURIComponent(tag)}`) : navigate("/register")}
                     className="text-xs px-3 py-1.5 rounded-full border border-border
                       text-muted-foreground hover:border-foreground/30 hover:text-foreground
                       cursor-pointer transition-colors duration-150"
@@ -260,7 +262,7 @@ export default function LandingPage() {
           </motion.div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {CATEGORIES.map(cat => <CategoryCard key={cat.label} {...cat} />)}
+            {CATEGORIES.map(cat => <CategoryCard key={cat.label} {...cat} to={browseTarget} />)}
           </div>
 
           <motion.div
@@ -269,7 +271,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="mt-10"
           >
-            <Link to="/services">
+            <Link to={browseTarget}>
               <button className="inline-flex items-center gap-2 border border-border px-6 py-2.5 rounded-md
                 text-sm font-medium text-foreground hover:bg-secondary transition-colors cursor-pointer">
                 Explore All 14 Categories <ArrowRight className="w-4 h-4" />
@@ -335,13 +337,11 @@ export default function LandingPage() {
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-5">
+          <div className="grid md:grid-cols-2 gap-5">
             <FeatureCard delay={0}    icon={Shield} title="Verified Providers"
               desc="Every provider is reviewed and rated by real clients. Trust is built in." />
             <FeatureCard delay={0.08} icon={Zap}    title="Instant Booking"
               desc="Book a service in minutes. No back-and-forth calls — just pick a date and confirm." />
-            <FeatureCard delay={0.16} icon={Star}   title="Secure Payments"
-              desc="Pay via MTN MoMo, Orange Money, or cash. Funds held safely until job is complete." />
           </div>
         </div>
       </section>
@@ -368,7 +368,7 @@ export default function LandingPage() {
                   Become a Provider
                 </button>
               </Link>
-              <Link to="/services">
+              <Link to={browseTarget}>
                 <button className="px-8 py-3 rounded-md border border-background/25 text-background font-medium text-sm
                   cursor-pointer hover:bg-background/8 transition-colors">
                   Browse Services <ChevronRight className="inline w-4 h-4" />
@@ -392,7 +392,7 @@ export default function LandingPage() {
             © 2026 Service Hub. Connecting Cameroon's workforce.
           </p>
           <div className="flex gap-5 text-xs text-muted-foreground">
-            <Link to="/services" className="hover:text-foreground cursor-pointer transition-colors">Browse</Link>
+            <Link to={browseTarget} className="hover:text-foreground cursor-pointer transition-colors">Browse</Link>
             {user ? (
               <Link to={dashboardPath} className="hover:text-foreground cursor-pointer transition-colors">Dashboard</Link>
             ) : (

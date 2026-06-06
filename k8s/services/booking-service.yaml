@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  namespace: service-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      containers:
+        - name: booking-service
+          image: YOUR_REGISTRY/service-hub-booking-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8003
+          envFrom:
+            - configMapRef:
+                name: service-hub-config
+            - secretRef:
+                name: service-hub-secrets
+          env:
+            - name: DB_NAME
+              value: sh_bookings
+            - name: REDIS_CACHE_URL
+              value: redis://redis:6379/3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8003
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8003
+            initialDelaySeconds: 60
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service
+  namespace: service-hub
+spec:
+  selector:
+    app: booking-service
+  ports:
+    - port: 80
+      targetPort: 8003

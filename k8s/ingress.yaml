@@ -1,0 +1,94 @@
+# Requires the nginx ingress controller. Install it once per cluster:
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.1/deploy/static/provider/cloud/deploy.yaml
+#
+# Replace yourdomain.com with your real domain, or remove the host field entirely
+# to match all hostnames (useful for testing with the cluster IP).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: service-hub
+  namespace: service-hub
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "30m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    # Pass cookies through unchanged so JWT auth works across services
+    nginx.ingress.kubernetes.io/proxy-cookie-path: "/ /"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: yourdomain.com
+      http:
+        paths:
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 80
+          - path: /api/services
+            pathType: Prefix
+            backend:
+              service:
+                name: catalog-service
+                port:
+                  number: 80
+          - path: /api/bookings
+            pathType: Prefix
+            backend:
+              service:
+                name: booking-service
+                port:
+                  number: 80
+          - path: /api/reviews
+            pathType: Prefix
+            backend:
+              service:
+                name: review-service
+                port:
+                  number: 80
+          - path: /api/notifications
+            pathType: Prefix
+            backend:
+              service:
+                name: notification-service
+                port:
+                  number: 80
+          - path: /api/chat
+            pathType: Prefix
+            backend:
+              service:
+                name: chat-service
+                port:
+                  number: 80
+          - path: /api/location
+            pathType: Prefix
+            backend:
+              service:
+                name: location-service
+                port:
+                  number: 80
+          - path: /api/jobs
+            pathType: Prefix
+            backend:
+              service:
+                name: job-service
+                port:
+                  number: 80
+          # Media files served directly by the chat service
+          - path: /media
+            pathType: Prefix
+            backend:
+              service:
+                name: chat-service
+                port:
+                  number: 80
+          # React SPA — must be last (catch-all)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

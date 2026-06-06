@@ -84,18 +84,29 @@ class Base64ImageField(serializers.Field):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True)
+    otp = serializers.CharField(write_only=True, min_length=6, max_length=6)
+    role = serializers.ChoiceField(choices=[User.Role.CLIENT, User.Role.PROVIDER], default=User.Role.CLIENT)
 
     class Meta:
         model = User
-        fields = ("email", "username", "password", "password2", "role", "phone")
+        fields = ("email", "username", "password", "password2", "role", "phone", "otp")
 
     def validate(self, data):
         if data["password"] != data["password2"]:
             raise serializers.ValidationError({"password": "Passwords do not match."})
+
+        from django.core.cache import cache
+        email = data["email"].lower()
+        cached = cache.get(f"reg_otp:{email}")
+        if not cached or cached != data["otp"]:
+            raise serializers.ValidationError({"otp": ["Invalid or expired verification code."]})
+        cache.delete(f"reg_otp:{email}")
+
         return data
 
     def create(self, validated_data):
         validated_data.pop("password2")
+        validated_data.pop("otp")
         password = validated_data.pop("password")
         user = User(**validated_data)
         user.set_password(password)

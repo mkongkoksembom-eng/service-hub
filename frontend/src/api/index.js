@@ -3,8 +3,10 @@ import api from "./client"
 // Auth
 export const authApi = {
   register: (data) => api.post("/users/register/", data),
+  sendOtp: (email) => api.post("/users/send-otp/", { email }),
   login: (data) => api.post("/users/login/", data),
-  refreshToken: (refresh) => api.post("/users/token/refresh/", { refresh }),
+  logout: () => api.post("/users/logout/"),
+  refreshToken: () => api.post("/users/token/refresh/"),
   getProfile: () => api.get("/users/profile/"),
   updateProfile: (data) => api.patch("/users/profile/", data),
   uploadAvatar: (file) => {
@@ -75,7 +77,15 @@ export const locationApi = {
 // Chat
 export const chatApi = {
   getMessages: (bookingId) => api.get(`/chat/${bookingId}/`),
-  sendMessage: (bookingId, content) => api.post(`/chat/${bookingId}/`, { content }),
+  sendMessage: (bookingId, content) => api.post(`/chat/${bookingId}/`, { content, msg_type: "text" }),
+  sendFile: (bookingId, file, msgType) => {
+    const form = new FormData()
+    form.append("msg_type", msgType)
+    form.append("file", file)
+    return api.post(`/chat/${bookingId}/`, form, { headers: { "Content-Type": undefined } })
+  },
+  heartbeat: () => api.post("/chat/heartbeat/"),
+  presence: (ids) => api.get("/chat/presence/", { params: { ids: ids.join(",") } }),
 }
 
 // Stats
@@ -84,15 +94,3 @@ export const statsApi = {
   adminDashboard: () => api.get("/users/admin/dashboard/"),
 }
 
-// Payments
-export const paymentsApi = {
-  create: (data) => api.post("/payments/", data),
-  myPayments: (params) => api.get("/payments/my/", { params }),
-  providerPayments: (params) => api.get("/payments/provider/", { params }),
-  momoRequest: (id, phone_number) => api.post(`/payments/${id}/momo/request/`, { phone_number }),
-  momoStatus: (id) => api.get(`/payments/${id}/momo/status/`),
-  refund: (id) => api.post(`/payments/${id}/refund/`),
-  createFeatured: (service_id) => api.post("/payments/featured/", { service_id }),
-  featuredMomoRequest: (id, phone_number) => api.post(`/payments/featured/${id}/momo/request/`, { phone_number }),
-  featuredMomoStatus: (id) => api.get(`/payments/featured/${id}/momo/status/`),
-}

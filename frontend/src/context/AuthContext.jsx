@@ -8,13 +8,17 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const loadUser = useCallback(async () => {
-    const token = localStorage.getItem("access_token")
-    if (!token) { setLoading(false); return }
+    // Non-sensitive hint: only call the API when a session might exist.
+    // The actual auth is in the HttpOnly cookie, not this value.
+    if (!localStorage.getItem("is_logged_in")) {
+      setLoading(false)
+      return
+    }
     try {
       const { data } = await authApi.getProfile()
       setUser(data)
     } catch {
-      localStorage.clear()
+      localStorage.removeItem("is_logged_in")
     } finally {
       setLoading(false)
     }
@@ -24,14 +28,14 @@ export function AuthProvider({ children }) {
 
   const login = async (credentials) => {
     const { data } = await authApi.login(credentials)
-    localStorage.setItem("access_token", data.access)
-    localStorage.setItem("refresh_token", data.refresh)
+    localStorage.setItem("is_logged_in", "1")
     setUser(data.user)
     return data.user
   }
 
-  const logout = () => {
-    localStorage.clear()
+  const logout = async () => {
+    try { await authApi.logout() } catch { /* server-side cookie clear best-effort */ }
+    localStorage.removeItem("is_logged_in")
     setUser(null)
   }
 

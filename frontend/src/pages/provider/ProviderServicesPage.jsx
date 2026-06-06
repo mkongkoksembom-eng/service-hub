@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { useAuth } from "@/context/AuthContext"
-import { servicesApi, paymentsApi } from "@/api"
+import { servicesApi } from "@/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,11 +9,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Plus, Pencil, Trash2, Loader2, Smartphone, RefreshCw, CheckCircle2, Star } from "lucide-react"
+import { ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 export default function ProviderServicesPage() {
-  const { user } = useAuth()
   const [services, setServices] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,16 +20,10 @@ export default function ProviderServicesPage() {
   const [editing, setEditing] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
-
-  // Featured listing MoMo flow
-  const STEP = { PHONE: "phone", WAITING: "waiting", SUCCESS: "success", FAILED: "failed" }
-  const [featureTarget, setFeatureTarget] = useState(null)
-  const [featuredPaymentId, setFeaturedPaymentId] = useState(null)
-  const [featurePhone, setFeaturePhone] = useState("")
-  const [featureStep, setFeatureStep] = useState(STEP.PHONE)
-  const [featureSubmitting, setFeatureSubmitting] = useState(false)
-  const featurePollRef = useRef(null)
   const [form, setForm] = useState({ title: "", description: "", price: "", price_type: "fixed", category_id: "", location: "" })
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const fileInputRef = useRef(null)
 
   const load = async () => {
     setLoading(true)
@@ -49,6 +41,8 @@ export default function ProviderServicesPage() {
   const openCreate = () => {
     setEditing(null)
     setForm({ title: "", description: "", price: "", price_type: "fixed", category_id: "", location: "" })
+    setImageFile(null)
+    setImagePreview(null)
     setOpen(true)
   }
 
@@ -58,7 +52,24 @@ export default function ProviderServicesPage() {
       title: s.title, description: s.description, price: s.price,
       price_type: s.price_type, category_id: String(s.category?.id || ""), location: s.location || "",
     })
+    setImageFile(null)
+    setImagePreview(s.image || null)
     setOpen(true)
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setImagePreview(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   const submit = async () => {
@@ -67,11 +78,20 @@ export default function ProviderServicesPage() {
     }
     setSubmitting(true)
     try {
+      let payload
+      if (imageFile) {
+        payload = new FormData()
+        Object.entries(form).forEach(([k, v]) => { if (v !== "") payload.append(k, v) })
+        payload.append("image", imageFile)
+      } else {
+        payload = { ...form }
+        if (editing && imagePreview === null && editing.image) payload.image = ""
+      }
       if (editing) {
-        await servicesApi.update(editing.id, form)
+        await servicesApi.update(editing.id, payload)
         toast.success("Service updated.")
       } else {
-        await servicesApi.create(form)
+        await servicesApi.create(payload)
         toast.success("Service created.")
       }
       setOpen(false); load()
@@ -100,58 +120,6 @@ export default function ProviderServicesPage() {
 
   const f = (k) => (e) => setForm(prev => ({ ...prev, [k]: e.target?.value ?? e }))
 
-  const openFeature = (s) => {
-    setFeatureTarget(s)
-    setFeaturedPaymentId(null)
-    setFeaturePhone(user?.phone || "")
-    setFeatureStep(STEP.PHONE)
-  }
-
-  const closeFeature = () => {
-    clearInterval(featurePollRef.current)
-    setFeatureTarget(null)
-    setFeaturedPaymentId(null)
-    setFeaturePhone("")
-    setFeatureStep(STEP.PHONE)
-  }
-
-  const sendFeatureMomo = async () => {
-    if (!featurePhone.trim()) { toast.error("Enter your MTN MoMo number."); return }
-    setFeatureSubmitting(true)
-    try {
-      let fpId = featuredPaymentId
-      if (!fpId) {
-        const { data: fp } = await paymentsApi.createFeatured(featureTarget.id)
-        fpId = fp.id
-        setFeaturedPaymentId(fpId)
-      }
-      await paymentsApi.featuredMomoRequest(fpId, featurePhone)
-      setFeatureStep(STEP.WAITING)
-      let attempts = 0
-      featurePollRef.current = setInterval(async () => {
-        attempts++
-        try {
-          const { data } = await paymentsApi.featuredMomoStatus(fpId)
-          if (data.status === "SUCCESSFUL") {
-            clearInterval(featurePollRef.current)
-            setFeatureStep(STEP.SUCCESS)
-            toast.success("Service is now featured for 7 days!")
-            load()
-          } else if (data.status === "FAILED") {
-            clearInterval(featurePollRef.current)
-            setFeatureStep(STEP.FAILED)
-          } else if (attempts >= 24) {
-            clearInterval(featurePollRef.current)
-            toast.error("Payment timed out. Please try again.")
-            setFeatureStep(STEP.PHONE)
-          }
-        } catch { /* keep polling */ }
-      }, 5000)
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to send payment request.")
-    } finally { setFeatureSubmitting(false) }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -167,7 +135,12 @@ export default function ProviderServicesPage() {
               No services yet. <button onClick={openCreate} className="text-cta hover:underline cursor-pointer">Create your first one.</button>
             </div>
           : services.map(s => (
-            <Card key={s.id} className="hover:shadow-md transition-shadow">
+            <Card key={s.id} className="hover:shadow-md transition-shadow overflow-hidden">
+              {s.image && (
+                <div className="h-36 w-full overflow-hidden">
+                  <img src={s.image} alt={s.title} className="w-full h-full object-cover" />
+                </div>
+              )}
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
@@ -188,11 +161,6 @@ export default function ProviderServicesPage() {
                   <Button size="sm" variant="outline" onClick={() => toggle(s)} className="cursor-pointer">
                     {s.is_active ? "Deactivate" : "Activate"}
                   </Button>
-                  {!s.is_featured && (
-                    <Button size="sm" variant="outline" onClick={() => openFeature(s)} className="gap-1 cursor-pointer text-amber-600 border-amber-300 hover:bg-amber-50">
-                      <Star className="w-3.5 h-3.5" /> Feature
-                    </Button>
-                  )}
                   <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(s)} className="text-destructive cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
@@ -202,78 +170,6 @@ export default function ProviderServicesPage() {
           ))
         }
       </div>
-
-      {/* Feature listing dialog */}
-      <Dialog open={!!featureTarget} onOpenChange={closeFeature}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Star className="w-4 h-4 text-amber-500" /> Feature This Service
-            </DialogTitle>
-            <DialogDescription>
-              <strong>{featureTarget?.title}</strong> will appear at the top of search results for 7 days for <strong>2,000 FCFA</strong>.
-            </DialogDescription>
-          </DialogHeader>
-
-          {featureStep === STEP.PHONE && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">MTN MoMo Phone Number</label>
-                <input
-                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="e.g. 6XXXXXXXX"
-                  value={featurePhone}
-                  onChange={e => setFeaturePhone(e.target.value)}
-                  type="tel"
-                />
-                <p className="text-xs text-muted-foreground">Enter the number registered with MTN MoMo.</p>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={closeFeature} className="cursor-pointer">Cancel</Button>
-                <Button onClick={sendFeatureMomo} disabled={featureSubmitting}
-                  className="cursor-pointer bg-amber-500 hover:bg-amber-600 text-white gap-2">
-                  {featureSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Smartphone className="w-4 h-4" />}
-                  Pay 2,000 FCFA
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {featureStep === STEP.WAITING && (
-            <div className="text-center space-y-3 py-2">
-              <div className="relative inline-block">
-                <Smartphone className="w-14 h-14 text-amber-500" />
-                <RefreshCw className="w-4 h-4 text-amber-600 absolute -bottom-1 -right-1 animate-spin" />
-              </div>
-              <p className="font-semibold text-primary">Check your phone!</p>
-              <p className="text-sm text-muted-foreground">Approve the <strong>2,000 FCFA</strong> MoMo request on <strong>{featurePhone}</strong>.</p>
-              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                <Loader2 className="w-3 h-3 animate-spin" /> Waiting for confirmation…
-              </p>
-            </div>
-          )}
-
-          {featureStep === STEP.SUCCESS && (
-            <div className="text-center space-y-3 py-2">
-              <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto" />
-              <p className="font-semibold text-emerald-700 text-lg">Payment Successful!</p>
-              <p className="text-sm text-muted-foreground">Your service is now featured for 7 days.</p>
-              <Button onClick={closeFeature} className="cursor-pointer">Done</Button>
-            </div>
-          )}
-
-          {featureStep === STEP.FAILED && (
-            <div className="text-center space-y-3 py-2">
-              <p className="font-semibold text-destructive">Payment Failed</p>
-              <p className="text-sm text-muted-foreground">The payment was declined. Please try again.</p>
-              <div className="flex gap-2 justify-center">
-                <Button variant="outline" onClick={closeFeature} className="cursor-pointer">Cancel</Button>
-                <Button onClick={() => setFeatureStep(STEP.PHONE)} className="cursor-pointer">Try Again</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Delete confirmation dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
@@ -344,6 +240,45 @@ export default function ProviderServicesPage() {
             <div className="space-y-1">
               <Label>Location</Label>
               <Input placeholder="e.g. Yaounde, Douala" value={form.location} onChange={f("location")} />
+            </div>
+            <div className="space-y-1">
+              <Label>Service Photo</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleImageChange}
+              />
+              {imagePreview ? (
+                <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border">
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white text-xs rounded px-2 py-1 transition-colors"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                >
+                  <ImagePlus className="w-6 h-6" />
+                  <span className="text-sm">Click to upload a photo</span>
+                  <span className="text-xs">JPG, PNG or WEBP · max 5 MB</span>
+                </button>
+              )}
             </div>
             <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">Cancel</Button>

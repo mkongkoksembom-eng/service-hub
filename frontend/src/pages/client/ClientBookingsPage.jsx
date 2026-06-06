@@ -1,17 +1,14 @@
 import { useEffect, useState, useRef } from "react"
 import { useAuth } from "@/context/AuthContext"
-import { bookingsApi, reviewsApi, paymentsApi } from "@/api"
+import { bookingsApi, reviewsApi, chatApi } from "@/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Star, Loader2, CreditCard, CheckCircle2, Smartphone, RefreshCw, MessageCircle, Send, MapPin } from "lucide-react"
+import { Star, Loader2, MessageCircle, Send, MapPin } from "lucide-react"
 import { toast } from "sonner"
-import { chatApi } from "@/api"
 import BookingMap from "@/components/shared/BookingMap"
 
 const STATUS_COLORS = {
@@ -25,13 +22,9 @@ const STATUS_COLORS = {
 
 const TABS = ["all", "pending", "confirmed", "completed", "cancelled"]
 
-// MoMo payment steps
-const STEP = { PHONE: "phone", WAITING: "waiting", SUCCESS: "success", FAILED: "failed" }
-
 export default function ClientBookingsPage() {
   const { user } = useAuth()
   const [bookings, setBookings] = useState([])
-  const [paymentMap, setPaymentMap] = useState({})
   const [loading, setLoading] = useState(true)
 
   // Cancel state
@@ -42,14 +35,6 @@ export default function ClientBookingsPage() {
   const [reviewTarget, setReviewTarget] = useState(null)
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState("")
-
-  // MoMo payment state
-  const [payTarget, setPayTarget] = useState(null)
-  const [paymentId, setPaymentId] = useState(null)
-  const [phoneNumber, setPhoneNumber] = useState("")
-  const [momoStep, setMomoStep] = useState(STEP.PHONE)
-  const [, setPolling] = useState(false)
-  const pollRef = useRef(null)
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -65,21 +50,12 @@ export default function ClientBookingsPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const [{ data: b }, { data: p }] = await Promise.all([
-        bookingsApi.myBookings(),
-        paymentsApi.myPayments(),
-      ])
+      const { data: b } = await bookingsApi.myBookings()
       setBookings(b.results || [])
-      const map = {}
-      for (const payment of (p.results || [])) map[payment.booking] = payment
-      setPaymentMap(map)
     } finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [])
-
-  // Cleanup polling on unmount
-  useEffect(() => () => clearInterval(pollRef.current), [])
 
   // Chat helpers
   const openChat = async (booking) => {
@@ -147,78 +123,9 @@ export default function ClientBookingsPage() {
     } finally { setSubmitting(false) }
   }
 
-  const openPayDialog = async (booking) => {
-    setSubmitting(true)
-    try {
-      // Create payment record first to get the ID
-      const { data: payment } = await paymentsApi.create({
-        booking_id: booking.id,
-        method: "mobile_money",
-      })
-      setPaymentId(payment.id)
-      setPayTarget(booking)
-      setPhoneNumber(user?.phone || "")
-      setMomoStep(STEP.PHONE)
-    } catch (err) {
-      const msg = err.response?.data
-      toast.error(typeof msg === "object" ? Object.values(msg).flat().join(" ") : "Could not initiate payment.")
-    } finally { setSubmitting(false) }
-  }
-
-  const sendMomoRequest = async () => {
-    if (!phoneNumber.trim()) { toast.error("Enter your MTN MoMo phone number."); return }
-    setSubmitting(true)
-    try {
-      await paymentsApi.momoRequest(paymentId, phoneNumber)
-      setMomoStep(STEP.WAITING)
-      setPolling(true)
-      // Poll every 5 seconds for up to 2 minutes
-      let attempts = 0
-      pollRef.current = setInterval(async () => {
-        attempts++
-        try {
-          const { data } = await paymentsApi.momoStatus(paymentId)
-          if (data.status === "SUCCESSFUL") {
-            clearInterval(pollRef.current)
-            setPolling(false)
-            setMomoStep(STEP.SUCCESS)
-            toast.success("Payment confirmed! Thank you.")
-            load()
-          } else if (data.status === "FAILED") {
-            clearInterval(pollRef.current)
-            setPolling(false)
-            setMomoStep(STEP.FAILED)
-          } else if (attempts >= 24) {
-            // 24 × 5s = 2 min timeout
-            clearInterval(pollRef.current)
-            setPolling(false)
-            toast.error("Payment timed out. Please try again.")
-            setMomoStep(STEP.PHONE)
-          }
-        } catch { /* keep polling on network hiccups */ }
-      }, 5000)
-    } catch (err) {
-      const msg = err.response?.data?.detail || "Failed to send payment request."
-      toast.error(msg)
-    } finally { setSubmitting(false) }
-  }
-
-  const closePayDialog = () => {
-    clearInterval(pollRef.current)
-    setPolling(false)
-    setPayTarget(null)
-    setPaymentId(null)
-    setMomoStep(STEP.PHONE)
-  }
-
   const filtered = (tab) => tab === "all" ? bookings : bookings.filter(b => b.status === tab)
 
   const BookingCard = ({ b }) => {
-    const payment = paymentMap[b.id]
-    const isPaid = payment?.status === "paid"
-    const isRefunded = payment?.status === "refunded"
-    const canPay = ["confirmed", "completed"].includes(b.status) && !isPaid && !isRefunded
-
     return (
       <Card className="hover:shadow-md transition-shadow">
         <CardContent className="p-4 space-y-3">
@@ -254,31 +161,10 @@ export default function ClientBookingsPage() {
             </details>
           )}
 
-          {isPaid && (
-            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1 w-fit">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Paid via MTN MoMo
-            </div>
-          )}
-          {isRefunded && (
-            <div className="text-xs font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded-md px-2 py-1 w-fit">
-              Refunded
-            </div>
-          )}
-
           <div className="flex gap-2 flex-wrap">
             {["pending", "confirmed"].includes(b.status) && (
               <Button size="sm" variant="destructive" className="cursor-pointer" onClick={() => setCancelTarget(b)}>
                 Cancel
-              </Button>
-            )}
-            {canPay && (
-              <Button
-                size="sm"
-                className="cursor-pointer gap-1.5 bg-yellow-500 hover:bg-yellow-600 text-white"
-                onClick={() => openPayDialog(b)}
-                disabled={submitting}
-              >
-                <Smartphone className="w-3.5 h-3.5" /> Pay with MoMo
               </Button>
             )}
             {b.status === "completed" && !b.has_review && (
@@ -425,100 +311,6 @@ export default function ClientBookingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* MTN MoMo payment dialog */}
-      <Dialog open={!!payTarget} onOpenChange={closePayDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Smartphone className="w-5 h-5 text-yellow-500" /> MTN MoMo Payment
-            </DialogTitle>
-            <DialogDescription>
-              {payTarget?.service?.title} — <strong>{payTarget && parseFloat(payTarget.total_price).toLocaleString()} FCFA</strong>
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Step 1 — Enter phone number */}
-          {momoStep === STEP.PHONE && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>MTN MoMo Phone Number</Label>
-                <Input
-                  placeholder="e.g. 6XXXXXXXX"
-                  value={phoneNumber}
-                  onChange={e => setPhoneNumber(e.target.value)}
-                  type="tel"
-                />
-                <p className="text-xs text-muted-foreground">Enter the number registered with MTN MoMo (without country code).</p>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={closePayDialog} className="cursor-pointer">Cancel</Button>
-                <Button
-                  onClick={sendMomoRequest}
-                  disabled={submitting}
-                  className="cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white gap-2"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Smartphone className="w-4 h-4" />}
-                  Send Payment Request
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2 — Waiting for approval */}
-          {momoStep === STEP.WAITING && (
-            <div className="text-center space-y-4 py-4">
-              <div className="flex justify-center">
-                <div className="relative">
-                  <Smartphone className="w-16 h-16 text-yellow-500" />
-                  <RefreshCw className="w-5 h-5 text-yellow-600 absolute -bottom-1 -right-1 animate-spin" />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-primary">Check your phone!</p>
-                <p className="text-sm text-muted-foreground">
-                  A payment request of <strong>{payTarget && parseFloat(payTarget.total_price).toLocaleString()} FCFA</strong> has been sent to <strong>{phoneNumber}</strong>.
-                </p>
-                <p className="text-sm text-muted-foreground">Enter your MoMo PIN on your phone to confirm.</p>
-              </div>
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Waiting for confirmation…
-              </div>
-            </div>
-          )}
-
-          {/* Step 3a — Success */}
-          {momoStep === STEP.SUCCESS && (
-            <div className="text-center space-y-4 py-4">
-              <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
-              <div className="space-y-1">
-                <p className="font-semibold text-emerald-700 text-lg">Payment Successful!</p>
-                <p className="text-sm text-muted-foreground">
-                  {parseFloat(payTarget?.total_price || 0).toLocaleString()} FCFA paid via MTN MoMo.
-                </p>
-              </div>
-              <Button onClick={closePayDialog} className="cursor-pointer">Done</Button>
-            </div>
-          )}
-
-          {/* Step 3b — Failed */}
-          {momoStep === STEP.FAILED && (
-            <div className="text-center space-y-4 py-4">
-              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
-                <CreditCard className="w-8 h-8 text-red-500" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-destructive text-lg">Payment Failed</p>
-                <p className="text-sm text-muted-foreground">The payment was declined or cancelled. Please try again.</p>
-              </div>
-              <div className="flex gap-2 justify-center">
-                <Button variant="outline" onClick={closePayDialog} className="cursor-pointer">Close</Button>
-                <Button onClick={() => setMomoStep(STEP.PHONE)} className="cursor-pointer">Try Again</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

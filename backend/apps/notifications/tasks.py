@@ -1,16 +1,4 @@
 from celery import shared_task
-from django.conf import settings
-from django.core.mail import send_mail
-
-
-def _send(subject, message, recipient_email):
-    send_mail(
-        subject=subject,
-        message=message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[recipient_email],
-        fail_silently=True,
-    )
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -81,19 +69,7 @@ def send_welcome_task(self, user_id):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_password_reset_task(self, username, email, reset_link):
     try:
-        _send(
-            subject="Reset Your Service Hub Password",
-            message=f"""Hi {username},
-
-We received a request to reset your password.
-
-Click the link below to set a new password (valid for 24 hours):
-{reset_link}
-
-If you did not request this, you can safely ignore this email.
-
-— The Service Hub Team""",
-            recipient_email=email,
-        )
+        from apps.notifications.emails import send_password_reset_email
+        send_password_reset_email(username, email, reset_link)
     except Exception as exc:
         raise self.retry(exc=exc)

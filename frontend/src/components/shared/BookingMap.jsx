@@ -18,6 +18,12 @@ function distanceKm(a, b) {
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;")
+}
+
 function makePulsingMarker(color, label) {
   const el = document.createElement("div")
   el.style.cssText = "position:relative;display:flex;flex-direction:column;align-items:center;"
@@ -30,7 +36,7 @@ function makePulsingMarker(color, label) {
       <div style="position:absolute;inset:0;border-radius:50%;background:${color};opacity:.3;animation:pulse-${id} 2s ease-in-out infinite;"></div>
       <div style="width:20px;height:20px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.4);position:relative;z-index:1;"></div>
     </div>
-    <div style="background:${color};color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3);margin-top:2px;">${label}</div>
+    <div style="background:${color};color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3);margin-top:2px;">${escapeHtml(label)}</div>
   `
   return el
 }
@@ -142,8 +148,8 @@ export default function BookingMap({ bookingId, myRole }) {
         markersRef.current[role] = new ml.Marker({ element: el, anchor: "bottom" })
           .setLngLat(lngLat)
           .setPopup(new ml.Popup({ offset: 25 }).setHTML(
-            `<strong style="font-size:13px">${loc.username}</strong><br>
-             <span style="font-size:11px;color:#64748b;text-transform:capitalize">${role}</span>`
+            `<strong style="font-size:13px">${escapeHtml(loc.username)}</strong><br>
+             <span style="font-size:11px;color:#64748b;text-transform:capitalize">${escapeHtml(role)}</span>`
           ))
           .addTo(map)
       }

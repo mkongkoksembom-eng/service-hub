@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-hub-config
+  namespace: service-hub
+data:
+  # Django
+  DEBUG: "0"
+  ALLOWED_HOSTS: "*"
+
+  # Database (shared host — each service sets DB_NAME individually)
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USER: postgres
+
+  # Redis / Celery
+  CELERY_BROKER_URL: "redis://redis:6379/0"
+  CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+
+  # CORS — set to your real domain(s) before going live
+  CORS_ALLOWED_ORIGINS: "https://yourdomain.com"
+
+  # Email — update with real SMTP details
+  EMAIL_HOST: "smtp.example.com"
+  EMAIL_PORT: "587"
+  EMAIL_HOST_USER: "noreply@yourdomain.com"
+  DEFAULT_FROM_EMAIL: "ServiceHub <noreply@yourdomain.com>"
+
+  # Inter-service URLs (K8s DNS — no port needed, Services expose port 80)
+  USER_SERVICE_URL: "http://user-service"
+  CATALOG_SERVICE_URL: "http://catalog-service"
+  BOOKING_SERVICE_URL: "http://booking-service"
+  REVIEW_SERVICE_URL: "http://review-service"
+  NOTIFICATION_SERVICE_URL: "http://notification-service"
+  CHAT_SERVICE_URL: "http://chat-service"
+  LOCATION_SERVICE_URL: "http://location-service"
+  JOB_SERVICE_URL: "http://job-service"

@@ -67,13 +67,11 @@ class Service(models.Model):
     location = models.CharField(max_length=255, blank=True)
     image = models.TextField(blank=True, default="")
     is_active = models.BooleanField(default=True)
-    is_featured = models.BooleanField(default=False)
-    featured_until = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-is_featured", "-created_at"]
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.title

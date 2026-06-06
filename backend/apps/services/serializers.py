@@ -63,7 +63,7 @@ class ServiceSerializer(serializers.ModelSerializer):
         fields = (
             "id", "provider", "category", "category_id",
             "title", "description", "price", "price_type",
-            "location", "image", "is_active", "is_featured", "featured_until",
+            "location", "image", "is_active",
             "created_at", "updated_at",
         )
         read_only_fields = ("id", "provider", "created_at", "updated_at")
@@ -77,6 +77,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 class ServiceListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views."""
     provider_name = serializers.CharField(source="provider.user.username", read_only=True)
+    provider_user_id = serializers.IntegerField(source="provider.user.id", read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
     average_rating = serializers.DecimalField(
         source="provider.average_rating", max_digits=3, decimal_places=2, read_only=True
@@ -86,6 +87,6 @@ class ServiceListSerializer(serializers.ModelSerializer):
         model = Service
         fields = (
             "id", "title", "price", "price_type", "location",
-            "image", "is_active", "is_featured", "featured_until",
-            "provider_name", "category_name", "average_rating", "created_at",
+            "image", "is_active",
+            "provider_name", "provider_user_id", "category_name", "average_rating", "created_at",
         )

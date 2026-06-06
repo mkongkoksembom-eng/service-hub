@@ -35,7 +35,6 @@ INSTALLED_APPS = [
     "apps.bookings",
     "apps.reviews",
     "apps.notifications",
-    "apps.payments",
     "apps.chat",
     "apps.location",
 ]
@@ -49,6 +48,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "service_hub.request_logger.RequestLoggerMiddleware",
 ]
 
 ROOT_URLCONF = "service_hub.urls"
@@ -82,6 +82,10 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD", ""),
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5432"),
+        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "0")),
+        "OPTIONS": {
+            "connect_timeout": 5,
+        },
     }
 }
 
@@ -132,7 +136,7 @@ AUTH_USER_MODEL = "users.User"
 # DRF
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.users.cookie_auth.CookieJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -144,6 +148,14 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "EXCEPTION_HANDLER": "service_hub.exceptions.custom_exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_login": "10/minute",
+        "auth_register": "5/hour",
+        "auth_otp": "10/hour",
+        "auth_reset": "5/hour",
+    },
 }
 
 # JWT
@@ -159,6 +171,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+CORS_ALLOW_CREDENTIALS = True
 
 # Email
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -170,6 +183,15 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = f"Service Hub <{EMAIL_HOST_USER}>"
 FRONTEND_URL = "http://localhost:5173"
 
+# Cache (Redis, db 1 — Celery broker uses db 0)
+REDIS_BASE = os.environ.get("REDIS_URL", "redis://localhost:6379/0").rsplit("/", 1)[0]
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": f"{REDIS_BASE}/1",
+    }
+}
+
 # Celery
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = "django-db"
@@ -178,13 +200,18 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_EXTENDED = True
 
-# Platform monetisation
-COMMISSION_RATE      = 0.05   # 5 % of each booking payment
-FEATURED_LISTING_PRICE = 2000 # FCFA per featured slot
-FEATURED_LISTING_DAYS  = 7    # days a featured slot lasts
+# Security headers (active in production only)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000          # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
 
-# MTN MoMo API
-MOMO_SUBSCRIPTION_KEY = os.environ.get("MOMO_SUBSCRIPTION_KEY", "")
-MOMO_API_USER = os.environ.get("MOMO_API_USER", "")
-MOMO_API_KEY = os.environ.get("MOMO_API_KEY", "")
-MOMO_ENVIRONMENT = os.environ.get("MOMO_ENVIRONMENT", "sandbox")
+from service_hub.logging_config import get_logging_config
+LOGGING = get_logging_config(debug=DEBUG)

@@ -8,9 +8,13 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import User
+from .permissions import IsAdmin
+from service_hub.cache_utils import CacheListMixin
 from .serializers import (
     ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
@@ -19,20 +23,115 @@ from .serializers import (
     RegisterSerializer,
     UserProfileSerializer,
 )
+from .throttles import LoginThrottle, OTPThrottle, PasswordResetThrottle, RegisterThrottle
+
+
+def _set_auth_cookies(response, *, access_token, refresh_token=None):
+    """Attach JWT tokens as HttpOnly cookies (Secure in production)."""
+    kwargs = dict(httponly=True, secure=not settings.DEBUG, samesite="Strict")
+    response.set_cookie("access_token", access_token, max_age=3600, **kwargs)
+    if refresh_token:
+        response.set_cookie("refresh_token", refresh_token, max_age=604800, **kwargs)
+
+
+class SendOTPView(APIView):
+    """Generate a 6-digit OTP, cache it for 10 minutes, and email it to the user."""
+    permission_classes = (AllowAny,)
+    throttle_classes = [OTPThrottle]
+
+    def post(self, request):
+        import random
+        from django.core.cache import cache
+        from django.core.validators import validate_email as _validate_email
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        email = request.data.get("email", "").strip().lower()
+        if not email:
+            return Response({"email": ["Email is required."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            _validate_email(email)
+        except DjangoValidationError:
+            return Response({"email": ["Enter a valid email address."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(email=email).exists():
+            return Response({"email": ["An account with this email already exists."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp = f"{random.randint(100000, 999999)}"
+        cache.set(f"reg_otp:{email}", otp, timeout=600)
+
+        try:
+            from apps.notifications.emails import send_otp_email
+            send_otp_email(email, otp)
+        except Exception:
+            cache.delete(f"reg_otp:{email}")
+            return Response(
+                {"detail": "Failed to send verification email. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({"detail": "Verification code sent to your email."})
 
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+    throttle_classes = [RegisterThrottle]
 
     def perform_create(self, serializer):
         user = serializer.save()
         send_welcome_task.delay(user.id)
 
 
-class CustomTokenObtainPairView(TokenObtainPairView):
+class CookieTokenObtainPairView(TokenObtainPairView):
+    """Login: validates credentials, sets tokens as HttpOnly cookies, returns only user data."""
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [LoginThrottle]
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            access = response.data.pop("access", None)
+            refresh = response.data.pop("refresh", None)
+            if access and refresh:
+                _set_auth_cookies(response, access_token=access, refresh_token=refresh)
+        return response
+
+
+class CookieTokenRefreshView(APIView):
+    """Read refresh token from cookie, issue new access (and rotated refresh) cookie."""
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+        if not refresh_token:
+            return Response({"detail": "No refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            token = RefreshToken(refresh_token)
+            access = str(token.access_token)
+        except TokenError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+
+        response = Response({"detail": "Token refreshed."})
+        rotate = settings.SIMPLE_JWT.get("ROTATE_REFRESH_TOKENS", False)
+        _set_auth_cookies(
+            response,
+            access_token=access,
+            refresh_token=str(token) if rotate else None,
+        )
+        return response
+
+
+class LogoutView(APIView):
+    """Clear auth cookies — works even if the tokens are already expired."""
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        response = Response({"detail": "Logged out."})
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        return response
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
@@ -55,6 +154,7 @@ class ChangePasswordView(APIView):
 
 class PasswordResetRequestView(APIView):
     permission_classes = (AllowAny,)
+    throttle_classes = [PasswordResetThrottle]
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -88,8 +188,14 @@ class PasswordResetConfirmView(APIView):
 class PublicStatsView(APIView):
     """Public platform-wide statistics for the landing page."""
     permission_classes = (AllowAny,)
+    _cache_timeout = 300
 
     def get(self, request):
+        from django.core.cache import cache
+        cached = cache.get("view:public_stats")
+        if cached is not None:
+            from rest_framework.response import Response
+            return Response(cached)
         from django.db.models import Count, Q
         from apps.services.models import Category, Service
         from apps.reviews.models import Review
@@ -107,7 +213,7 @@ class PublicStatsView(APIView):
             .values_list("name", flat=True)[:6]
         )
 
-        return Response({
+        data = {
             "total_clients":            User.objects.filter(role=User.Role.CLIENT).count(),
             "total_providers":          User.objects.filter(role=User.Role.PROVIDER).count(),
             "total_active_services":    Service.objects.filter(is_active=True).count(),
@@ -116,7 +222,9 @@ class PublicStatsView(APIView):
             "average_rating":           round(float(avg), 1),
             "total_completed_bookings": Booking.objects.filter(status=Booking.Status.COMPLETED).count(),
             "popular_jobs":             popular_jobs,
-        })
+        }
+        cache.set("view:public_stats", data, self._cache_timeout)
+        return Response(data)
 
 
 class UserListView(generics.ListAPIView):
@@ -128,33 +236,28 @@ class UserListView(generics.ListAPIView):
     ordering_fields = ("date_joined", "email")
 
     def get_queryset(self):
+        from rest_framework.exceptions import PermissionDenied
         if not (self.request.user.role == "admin" or self.request.user.is_staff):
-            return User.objects.filter(id=self.request.user.id)
+            raise PermissionDenied("Admin access required.")
         return super().get_queryset()
 
 
 class AdminDashboardView(APIView):
     """Admin-only: rich stats + recent activity for the admin dashboard."""
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAdmin,)
 
     def get(self, request):
-        if not (request.user.role == "admin" or request.user.is_staff):
-            return Response({"detail": "Permission denied."}, status=403)
 
-        from django.db.models import Count, Sum, Q
+        from django.db.models import Count, Q
         from apps.bookings.models import Booking
         from apps.services.models import Service
         from apps.reviews.models import Review
-        from apps.payments.models import Payment
 
         # ── Aggregate stats ──────────────────────────────────────────
         total_clients   = User.objects.filter(role=User.Role.CLIENT).count()
         total_providers = User.objects.filter(role=User.Role.PROVIDER).count()
         total_services  = Service.objects.filter(is_active=True).count()
         total_bookings  = Booking.objects.count()
-        total_revenue   = Payment.objects.filter(status="paid").aggregate(
-            total=Sum("amount")
-        )["total"] or 0
         avg_rating      = Review.objects.aggregate(avg=Avg("rating"))["avg"] or 0
 
         booking_by_status = list(
@@ -178,7 +281,6 @@ class AdminDashboardView(APIView):
                 "total_providers":  total_providers,
                 "total_services":   total_services,
                 "total_bookings":   total_bookings,
-                "total_revenue":    float(total_revenue),
                 "average_rating":   round(float(avg_rating), 1),
             },
             "booking_by_status": booking_by_status,

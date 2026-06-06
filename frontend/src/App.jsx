@@ -23,8 +23,8 @@ import ProfilePage from "@/pages/ProfilePage"
 import ProviderDashboard from "@/pages/provider/ProviderDashboard"
 import ProviderBookingsPage from "@/pages/provider/ProviderBookingsPage"
 import ProviderServicesPage from "@/pages/provider/ProviderServicesPage"
-import ProviderPaymentsPage from "@/pages/provider/ProviderPaymentsPage"
 import AdminDashboard from "@/pages/admin/AdminDashboard"
+import ChatPage from "@/pages/shared/ChatPage"
 
 export default function App() {
   return (
@@ -38,12 +38,18 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
 
-            {/* Public */}
+            {/* Public — landing always open */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/services" element={<ServicesPage />} />
-              <Route path="/services/:id" element={<ServiceDetailPage />} />
-              <Route path="/providers/:id" element={<ProviderProfilePage />} />
+            </Route>
+
+            {/* Requires registration — unregistered users are sent to /register */}
+            <Route element={<ProtectedRoute redirectTo="/register" />}>
+              <Route element={<PublicLayout />}>
+                <Route path="/services" element={<ServicesPage />} />
+                <Route path="/services/:id" element={<ServiceDetailPage />} />
+                <Route path="/providers/:id" element={<ProviderProfilePage />} />
+              </Route>
             </Route>
 
             {/* Client routes */}
@@ -51,6 +57,7 @@ export default function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/client/dashboard" element={<ClientDashboard />} />
                 <Route path="/client/bookings" element={<ClientBookingsPage />} />
+                <Route path="/client/chats" element={<ChatPage />} />
                 <Route path="/client/reviews" element={<ClientReviewsPage />} />
                 <Route path="/client/notifications" element={<NotificationsPage />} />
               </Route>
@@ -61,8 +68,8 @@ export default function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/provider/dashboard" element={<ProviderDashboard />} />
                 <Route path="/provider/bookings" element={<ProviderBookingsPage />} />
+                <Route path="/provider/chats" element={<ChatPage />} />
                 <Route path="/provider/services" element={<ProviderServicesPage />} />
-                <Route path="/provider/payments" element={<ProviderPaymentsPage />} />
                 <Route path="/provider/notifications" element={<NotificationsPage />} />
               </Route>
             </Route>

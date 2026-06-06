@@ -1,0 +1,83 @@
+# Chat media files — ReadWriteOnce is fine for a single replica.
+# For multiple replicas, switch to ReadWriteMany (NFS/EFS) or use S3/MinIO.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chat-media
+  namespace: service-hub
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: service-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+    spec:
+      containers:
+        - name: chat-service
+          image: YOUR_REGISTRY/service-hub-chat-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8007
+          envFrom:
+            - configMapRef:
+                name: service-hub-config
+            - secretRef:
+                name: service-hub-secrets
+          env:
+            - name: DB_NAME
+              value: sh_chat
+            - name: REDIS_CACHE_URL
+              value: redis://redis:6379/7
+            - name: MEDIA_ROOT
+              value: /app/media
+          volumeMounts:
+            - name: chat-media
+              mountPath: /app/media
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8007
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8007
+            initialDelaySeconds: 60
+            periodSeconds: 20
+      volumes:
+        - name: chat-media
+          persistentVolumeClaim:
+            claimName: chat-media
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: service-hub
+spec:
+  selector:
+    app: chat-service
+  ports:
+    - port: 80
+      targetPort: 8007

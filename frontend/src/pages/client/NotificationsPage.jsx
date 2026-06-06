@@ -17,8 +17,6 @@ const TYPE_META = {
   booking_in_progress: { dot: "bg-zinc-500",    label: "In Progress"    },
   booking_completed:   { dot: "bg-emerald-500", label: "Completed"      },
   review_received:     { dot: "bg-amber-500",   label: "Review"         },
-  payment_received:    { dot: "bg-emerald-500", label: "Payment"        },
-  payment_refunded:    { dot: "bg-zinc-500",    label: "Refunded"       },
 }
 
 export default function NotificationsPage() {

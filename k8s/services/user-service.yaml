@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: service-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: YOUR_REGISTRY/service-hub-user-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: service-hub-config
+            - secretRef:
+                name: service-hub-secrets
+          env:
+            - name: DB_NAME
+              value: sh_users
+            - name: REDIS_CACHE_URL
+              value: redis://redis:6379/1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8001
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8001
+            initialDelaySeconds: 60
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: service-hub
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 80
+      targetPort: 8001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-celery
+  namespace: service-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service-celery
+  template:
+    metadata:
+      labels:
+        app: user-service-celery
+    spec:
+      containers:
+        - name: celery
+          image: YOUR_REGISTRY/service-hub-user-service:latest
+          imagePullPolicy: Always
+          command: ["celery", "-A", "config.celery", "worker", "-l", "info", "-Q", "user_service", "-c", "2"]
+          envFrom:
+            - configMapRef:
+                name: service-hub-config
+            - secretRef:
+                name: service-hub-secrets
+          env:
+            - name: DB_NAME
+              value: sh_users
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

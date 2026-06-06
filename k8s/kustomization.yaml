@@ -1,0 +1,23 @@
+# Deploy everything with a single command:
+#   kubectl apply -k k8s/
+#
+# Tear down:
+#   kubectl delete -k k8s/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - redis.yaml
+  - services/user-service.yaml
+  - services/catalog-service.yaml
+  - services/booking-service.yaml
+  - services/review-service.yaml
+  - services/notification-service.yaml
+  - services/chat-service.yaml
+  - services/location-service.yaml
+  - services/job-service.yaml
+  - services/frontend.yaml
+  - ingress.yaml

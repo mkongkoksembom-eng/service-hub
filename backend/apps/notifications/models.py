@@ -11,8 +11,6 @@ class Notification(models.Model):
         BOOKING_IN_PROGRESS = "booking_in_progress", "Service In Progress"
         BOOKING_COMPLETED = "booking_completed", "Booking Completed"
         REVIEW_RECEIVED = "review_received", "New Review Received"
-        PAYMENT_RECEIVED = "payment_received", "Payment Received"
-        PAYMENT_REFUNDED = "payment_refunded", "Payment Refunded"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,

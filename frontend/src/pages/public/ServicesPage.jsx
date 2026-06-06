@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { Search, MapPin, Star, SlidersHorizontal, X, Zap } from "lucide-react"
+import { Search, MapPin, Star, SlidersHorizontal, X } from "lucide-react"
+import { toast } from "sonner"
 import { servicesApi } from "@/api"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -12,13 +13,8 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 function ServiceCard({ service }) {
   return (
     <Link to={`/services/${service.id}`} className="cursor-pointer group">
-      <Card className={`overflow-hidden hover:shadow-lg transition-shadow duration-200 h-full ${service.is_featured ? "ring-2 ring-amber-400" : ""}`}>
+      <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-200 h-full">
         <div className="bg-muted h-40 flex items-center justify-center overflow-hidden relative">
-          {service.is_featured && (
-            <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-amber-400 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow">
-              <Zap className="w-3 h-3" /> Featured
-            </div>
-          )}
           {service.image
             ? <img src={service.image} alt={service.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
             : <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
@@ -75,25 +71,32 @@ export default function ServicesPage() {
   const [services, setServices] = useState([])
   const [groupedCategories, setGroupedCategories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState({ category: "", price_type: "", ordering: "-created_at" })
   const [showFilters, setShowFilters] = useState(false)
 
   const fetchServices = async () => {
     setLoading(true)
+    setFetchError(false)
     try {
       const params = { search, ...filters }
       if (!params.category) delete params.category
       if (!params.price_type) delete params.price_type
       const { data } = await servicesApi.list(params)
       setServices(data.results)
-    } catch { /* silent */ } finally { setLoading(false) }
+    } catch {
+      setFetchError(true)
+      toast.error("Failed to load services. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
-    servicesApi.categoriesGrouped().then(({ data }) => {
-      setGroupedCategories(data.results || data)
-    })
+    servicesApi.categoriesGrouped()
+      .then(({ data }) => setGroupedCategories(data.results || data))
+      .catch(() => { /* categories are non-critical; filters just won't populate */ })
   }, [])
 
   useEffect(() => {
@@ -186,7 +189,7 @@ export default function ServicesPage() {
 
       {/* Results */}
       <div>
-        {!loading && (
+        {!loading && !fetchError && (
           <p className="text-sm text-muted-foreground mb-4">
             {services.length} service{services.length !== 1 ? "s" : ""} found
           </p>
@@ -194,6 +197,13 @@ export default function ServicesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => <ServiceCardSkeleton key={i} />)
+            : fetchError
+            ? (
+              <div className="col-span-full text-center py-16 space-y-3">
+                <p className="text-muted-foreground">Could not load services. Check your connection and try again.</p>
+                <Button variant="outline" onClick={fetchServices}>Retry</Button>
+              </div>
+            )
             : services.length === 0
             ? <div className="col-span-full text-center py-16 text-muted-foreground">No services found. Try adjusting your search.</div>
             : services.map(s => <ServiceCard key={s.id} service={s} />)

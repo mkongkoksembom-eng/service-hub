@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.permissions import IsProvider
+from service_hub.cache_utils import CacheListMixin, CacheRetrieveMixin
 
 from .filters import ServiceFilter
 from .models import Category, ProviderProfile, Service
@@ -17,17 +18,21 @@ from .serializers import (
 )
 
 
-class CategoryListView(generics.ListAPIView):
+class CategoryListView(CacheListMixin, generics.ListAPIView):
     """Flat list of all categories (used for service detail display)."""
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = (permissions.AllowAny,)
+    pagination_class = None
+    cache_timeout = 300  # categories rarely change
 
 
-class CategoryGroupedListView(generics.ListAPIView):
+class CategoryGroupedListView(CacheListMixin, generics.ListAPIView):
     """Parent categories with subcategories nested — used for dropdowns and filters."""
     serializer_class = CategoryGroupedSerializer
     permission_classes = (permissions.AllowAny,)
+    pagination_class = None
+    cache_timeout = 300
 
     def get_queryset(self):
         return Category.objects.filter(parent=None).prefetch_related("subcategories")
@@ -72,31 +77,22 @@ class ProviderProfileDetailView(generics.RetrieveAPIView):
         return Response(serializer_class(instance, context=self.get_serializer_context()).data)
 
 
-class ServiceListView(generics.ListAPIView):
-    """Public service listing with search and filters. Featured services ranked first."""
+class ServiceListView(CacheListMixin, generics.ListAPIView):
+    """Public service listing with search and filters."""
     serializer_class = ServiceListSerializer
     permission_classes = (permissions.AllowAny,)
+    cache_timeout = 60
     filterset_class = ServiceFilter
     search_fields = ("title", "description", "location", "category__name", "provider__user__username")
     ordering_fields = ("price", "created_at", "provider__average_rating")
     ordering = ("-created_at",)
 
     def get_queryset(self):
-        from django.utils import timezone
-        from django.db.models import Case, When, BooleanField
-        now = timezone.now()
         return (
             Service.objects
             .filter(is_active=True)
             .select_related("provider__user", "category")
-            .annotate(
-                currently_featured=Case(
-                    When(is_featured=True, featured_until__gt=now, then=True),
-                    default=False,
-                    output_field=BooleanField(),
-                )
-            )
-            .order_by("-currently_featured", "-created_at")
+            .order_by("-created_at")
         )
 
 
@@ -110,10 +106,11 @@ class ServiceCreateView(generics.CreateAPIView):
         serializer.save()
 
 
-class ServiceDetailView(generics.RetrieveAPIView):
+class ServiceDetailView(CacheRetrieveMixin, generics.RetrieveAPIView):
     queryset = Service.objects.select_related("provider__user", "category")
     serializer_class = ServiceSerializer
     permission_classes = (permissions.AllowAny,)
+    cache_timeout = 60
 
 
 class ServiceUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
