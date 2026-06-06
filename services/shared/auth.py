@@ -43,7 +43,7 @@ class CookieJWTAuthentication(BaseAuthentication):
             validated = UntypedToken(token)
             payload = validated.payload
             user = TokenUser(
-                id=payload["user_id"],
+                id=int(payload["user_id"]),
                 email=payload.get("email", ""),
                 role=payload.get("role", "client"),
                 username=payload.get("username", ""),
