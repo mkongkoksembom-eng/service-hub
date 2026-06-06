@@ -108,6 +108,19 @@ class JobPostDetailSerializer(serializers.ModelSerializer):
         return obj.applications.filter(status="pending").count()
 
 
+class AppliedJobSerializer(JobPostDetailSerializer):
+    """Job detail enriched with the requesting provider's own application."""
+    my_application = serializers.SerializerMethodField()
+
+    class Meta(JobPostDetailSerializer.Meta):
+        fields = JobPostDetailSerializer.Meta.fields + ("my_application",)
+
+    def get_my_application(self, obj):
+        request = self.context["request"]
+        application = obj.applications.filter(provider_user_id=request.user.id).first()
+        return JobApplicationSerializer(application).data if application else None
+
+
 class MyJobPostSerializer(serializers.ModelSerializer):
     """Owner view — includes full application list."""
     applications = JobApplicationSerializer(many=True, read_only=True)

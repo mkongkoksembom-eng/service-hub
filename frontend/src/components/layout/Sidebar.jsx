@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard, CalendarCheck, Star, Bell,
-  Briefcase, ClipboardList, User, X, ShieldCheck, MessageSquare,
+  Briefcase, ClipboardList, User, X, ShieldCheck, MessageSquare, Hammer,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 const clientLinks = [
   { to: "/client/dashboard",     icon: LayoutDashboard, label: "Dashboard" },
   { to: "/client/bookings",      icon: CalendarCheck,   label: "My Bookings" },
+  { to: "/client/jobs",          icon: Hammer,          label: "My Jobs" },
   { to: "/client/chats",         icon: MessageSquare,   label: "Chats" },
   { to: "/client/reviews",       icon: Star,            label: "My Reviews" },
   { to: "/client/notifications", icon: Bell,            label: "Notifications" },
@@ -20,6 +21,7 @@ const providerLinks = [
   { to: "/provider/dashboard",     icon: LayoutDashboard, label: "Dashboard" },
   { to: "/provider/services",      icon: Briefcase,       label: "My Services" },
   { to: "/provider/bookings",      icon: ClipboardList,   label: "Bookings" },
+  { to: "/provider/jobs",          icon: Hammer,          label: "Jobs" },
   { to: "/provider/chats",         icon: MessageSquare,   label: "Chats" },
   { to: "/provider/notifications", icon: Bell,            label: "Notifications" },
 ]

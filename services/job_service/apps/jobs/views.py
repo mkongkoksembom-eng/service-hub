@@ -15,6 +15,7 @@ _MY_JOBS_PATH = "/api/jobs/my/"
 
 from .models import JobApplication, JobPost
 from .serializers import (
+    AppliedJobSerializer,
     JobApplicationSerializer,
     JobPostCreateSerializer,
     JobPostDetailSerializer,
@@ -264,15 +265,15 @@ class JobAcceptApplicationView(APIView):
 
 
 class ProviderAppliedJobsView(generics.ListAPIView):
-    """Provider sees all jobs they have applied to."""
-    serializer_class = JobPostDetailSerializer
+    """Provider sees all jobs they have applied to, with their own application status."""
+    serializer_class = AppliedJobSerializer
     permission_classes = (IsProvider,)
 
     def get_queryset(self):
         applied_job_ids = JobApplication.objects.filter(
             provider_user_id=self.request.user.id
         ).values_list("job_id", flat=True)
-        return JobPost.objects.filter(pk__in=applied_job_ids)
+        return JobPost.objects.filter(pk__in=applied_job_ids).prefetch_related("applications")
 
 
 class WithdrawApplicationView(APIView):

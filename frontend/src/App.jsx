@@ -17,12 +17,14 @@ import ServiceDetailPage from "@/pages/public/ServiceDetailPage"
 import ProviderProfilePage from "@/pages/public/ProviderProfilePage"
 import ClientDashboard from "@/pages/client/ClientDashboard"
 import ClientBookingsPage from "@/pages/client/ClientBookingsPage"
+import ClientJobsPage from "@/pages/client/ClientJobsPage"
 import ClientReviewsPage from "@/pages/client/ClientReviewsPage"
 import NotificationsPage from "@/pages/client/NotificationsPage"
 import ProfilePage from "@/pages/ProfilePage"
 import ProviderDashboard from "@/pages/provider/ProviderDashboard"
 import ProviderBookingsPage from "@/pages/provider/ProviderBookingsPage"
 import ProviderServicesPage from "@/pages/provider/ProviderServicesPage"
+import ProviderJobsPage from "@/pages/provider/ProviderJobsPage"
 import AdminDashboard from "@/pages/admin/AdminDashboard"
 import ChatPage from "@/pages/shared/ChatPage"
 
@@ -57,6 +59,7 @@ export default function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/client/dashboard" element={<ClientDashboard />} />
                 <Route path="/client/bookings" element={<ClientBookingsPage />} />
+                <Route path="/client/jobs" element={<ClientJobsPage />} />
                 <Route path="/client/chats" element={<ChatPage />} />
                 <Route path="/client/reviews" element={<ClientReviewsPage />} />
                 <Route path="/client/notifications" element={<NotificationsPage />} />
@@ -70,6 +73,7 @@ export default function App() {
                 <Route path="/provider/bookings" element={<ProviderBookingsPage />} />
                 <Route path="/provider/chats" element={<ChatPage />} />
                 <Route path="/provider/services" element={<ProviderServicesPage />} />
+                <Route path="/provider/jobs" element={<ProviderJobsPage />} />
                 <Route path="/provider/notifications" element={<NotificationsPage />} />
               </Route>
             </Route>

@@ -88,6 +88,21 @@ export const chatApi = {
   presence: (ids) => api.get("/chat/presence/", { params: { ids: ids.join(",") } }),
 }
 
+// Jobs
+export const jobsApi = {
+  list: (params) => api.get("/jobs/", { params }),
+  detail: (id) => api.get(`/jobs/${id}/`),
+  create: (data) => api.post("/jobs/post/", data),
+  update: (id, data) => api.patch(`/jobs/my/${id}/edit/`, data),
+  cancel: (id) => api.post(`/jobs/my/${id}/cancel/`),
+  myJobs: () => api.get("/jobs/my/"),
+  applications: (id) => api.get(`/jobs/my/${id}/applications/`),
+  acceptApplication: (id, appId) => api.post(`/jobs/my/${id}/applications/${appId}/accept/`),
+  apply: (id, data) => api.post(`/jobs/${id}/apply/`, data),
+  appliedJobs: () => api.get("/jobs/applied/"),
+  withdrawApplication: (id, appId) => api.post(`/jobs/${id}/applications/${appId}/withdraw/`),
+}
+
 // Stats
 export const statsApi = {
   public: () => api.get("/users/stats/"),
