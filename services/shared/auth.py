@@ -51,3 +51,8 @@ class CookieJWTAuthentication(BaseAuthentication):
             return user, validated
         except (InvalidToken, TokenError):
             return None
+
+    def authenticate_header(self, request):
+        # Without this, DRF reports missing/expired auth as 403 instead of
+        # 401, so the frontend's silent-refresh interceptor never fires.
+        return 'Bearer realm="api"'
