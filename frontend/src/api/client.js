@@ -20,7 +20,9 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    const isAuthEndpoint = original?.url?.includes("/users/login/")
+      || original?.url?.includes("/users/token/refresh/")
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true
       try {
         // Reuse an in-flight refresh so parallel 401s don't fire multiple refreshes
