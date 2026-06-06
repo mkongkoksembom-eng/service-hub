@@ -257,16 +257,6 @@ services:
 
   # ── Monitoring ──────────────────────────────────────────────────────────────
 
-  grafana:
-    image: grafana/grafana:latest
-    restart: unless-stopped
-    environment:
-      GF_SERVER_ROOT_URL: "http://69.62.105.92/grafana/"
-      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
-      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin}"
-    volumes:
-      - grafana_data:/var/lib/grafana
-
   prometheus:
     image: prom/prometheus:latest
     restart: unless-stopped
@@ -306,4 +296,3 @@ volumes:
   redis_data:
   chat_media:
   prometheus_data:
-  grafana_data:
