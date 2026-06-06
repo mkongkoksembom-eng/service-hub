@@ -101,8 +101,8 @@ export default function ProviderBookingsPage() {
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="font-semibold">{b.service?.title}</p>
-            <p className="text-sm text-muted-foreground">Client: <strong>{b.client?.username}</strong> ({b.client?.email})</p>
+            <p className="font-semibold">{b.service_title}</p>
+            <p className="text-sm text-muted-foreground">Client: <strong>{b.client_username}</strong> ({b.client_email})</p>
           </div>
           <span className={`text-xs font-medium px-2 py-1 rounded-full capitalize whitespace-nowrap ${STATUS_COLORS[b.status]}`}>
             {b.status.replace("_", " ")}
@@ -189,10 +189,10 @@ export default function ProviderBookingsPage() {
           <DialogHeader className="px-4 pt-4 pb-3 border-b border-border shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base">
               <MessageCircle className="w-4 h-4" />
-              Chat — {chatBooking?.service?.title}
+              Chat — {chatBooking?.service_title}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Client: {chatBooking?.client?.username}
+              Client: {chatBooking?.client_username}
             </DialogDescription>
           </DialogHeader>
 

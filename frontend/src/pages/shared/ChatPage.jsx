@@ -136,7 +136,7 @@ export default function ChatPage() {
   const mediaRecorderRef = useRef(null)  // { recorder, stream, chunks }
   const recordTimerRef   = useRef(null)
 
-  const getOtherUserId = (b) => isProvider ? b.client?.id : b.service?.provider_user_id
+  const getOtherUserId = (b) => isProvider ? b.client_id : b.provider_user_id
 
   const fetchPresence = async (bkgs) => {
     const ids = [...new Set(bkgs.map(getOtherUserId).filter(Boolean))]
@@ -386,7 +386,7 @@ export default function ChatPage() {
     if (recorder.state !== "inactive") recorder.stop()
   }
 
-  const otherName = (b) => isProvider ? b.client?.username : b.service?.provider_name
+  const otherName = (b) => isProvider ? b.client_username : b.provider_username
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex border border-border rounded-lg overflow-hidden bg-card">
@@ -435,7 +435,7 @@ export default function ChatPage() {
                   <InitialsAvatar name={otherName(b)} online={presenceMap[getOtherUserId(b)]} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">
-                      {b.service?.title ?? "Booking #" + b.id}
+                      {b.service_title ?? "Booking #" + b.id}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">{otherName(b)}</p>
                     <div className="flex items-center gap-2 mt-1">
@@ -511,7 +511,7 @@ export default function ChatPage() {
               <InitialsAvatar name={otherName(active)} online={presenceMap[getOtherUserId(active)]} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">
-                  {active.service?.title ?? "Booking #" + active.id}
+                  {active.service_title ?? "Booking #" + active.id}
                 </p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
                   <span>{otherName(active)}</span>

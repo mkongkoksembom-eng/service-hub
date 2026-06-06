@@ -87,7 +87,7 @@ function ReviewCard({ review, isOwn, onEdit, onDelete }) {
   const date = new Date(review.created_at).toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric",
   })
-  const initials = review.client?.username?.slice(0, 2).toUpperCase() || "?"
+  const initials = review.client_username?.slice(0, 2).toUpperCase() || "?"
 
   return (
     <div className="py-5 border-b border-border last:border-0">
@@ -101,7 +101,7 @@ function ReviewCard({ review, isOwn, onEdit, onDelete }) {
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <p className="font-semibold text-sm text-foreground">{review.client?.username}</p>
+              <p className="font-semibold text-sm text-foreground">{review.client_username}</p>
               {isOwn && (
                 <span className="text-[10px] font-medium text-muted-foreground border border-border
                   px-1.5 py-0.5 rounded leading-none">
@@ -168,7 +168,7 @@ export default function ServiceDetailPage() {
   const [editingReview, setEditingReview] = useState(false)
 
   // The current user's existing review for this service (if any)
-  const myReview = user ? reviews.find(r => r.client?.username === user.username) : null
+  const myReview = user ? reviews.find(r => r.client_id === user.id) : null
   // Can write a new review: client, has a completed booking, hasn't reviewed yet
   const canReview = user?.role === "client" && eligibleBooking && !myReview
 
@@ -190,10 +190,7 @@ export default function ServiceDetailPage() {
       const completed = data.results || data
       // Find first completed booking for this service that hasn't been reviewed
       // (server will also validate — this is just for showing/hiding the form)
-      const found = completed.find(b => {
-        const svcId = b.service?.id ?? b.service
-        return svcId === parseInt(id)
-      })
+      const found = completed.find(b => b.service_id === parseInt(id))
       setEligibleBooking(found || null)
     }).catch(() => {})
   }, [id, user])
@@ -338,7 +335,7 @@ export default function ServiceDetailPage() {
               <Link to={`/providers/${service.provider?.id}`} className="shrink-0">
                 <Avatar className="w-12 h-12 ring-1 ring-border hover:ring-foreground/30 transition-all">
                   <AvatarFallback className="bg-foreground text-background font-semibold">
-                    {service.provider?.user?.username?.slice(0, 2).toUpperCase()}
+                    {service.provider?.username?.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </Link>
@@ -347,7 +344,7 @@ export default function ServiceDetailPage() {
                   to={`/providers/${service.provider?.id}`}
                   className="font-semibold text-foreground hover:underline cursor-pointer"
                 >
-                  {service.provider?.user?.username}
+                  {service.provider?.username}
                 </Link>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -444,7 +441,7 @@ export default function ServiceDetailPage() {
                   <ReviewCard
                     key={r.id}
                     review={r}
-                    isOwn={r.client?.username === user?.username}
+                    isOwn={r.client_id === user?.id}
                     onEdit={startEdit}
                     onDelete={handleDeleteReview}
                   />

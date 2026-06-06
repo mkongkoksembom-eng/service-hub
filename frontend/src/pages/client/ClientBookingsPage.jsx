@@ -131,8 +131,8 @@ export default function ClientBookingsPage() {
         <CardContent className="p-4 space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="font-semibold">{b.service?.title}</p>
-              <p className="text-xs text-muted-foreground">by {b.service?.provider_name}</p>
+              <p className="font-semibold">{b.service_title}</p>
+              <p className="text-xs text-muted-foreground">by {b.provider_username}</p>
             </div>
             <span className={`text-xs font-medium px-2 py-1 rounded-full capitalize whitespace-nowrap ${STATUS_COLORS[b.status]}`}>
               {b.status.replace("_", " ")}
@@ -214,7 +214,7 @@ export default function ClientBookingsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cancel Booking</DialogTitle>
-            <DialogDescription>Provide a reason for cancelling <strong>{cancelTarget?.service?.title}</strong>.</DialogDescription>
+            <DialogDescription>Provide a reason for cancelling <strong>{cancelTarget?.service_title}</strong>.</DialogDescription>
           </DialogHeader>
           <Textarea placeholder="Cancellation reason…" value={cancelReason} onChange={e => setCancelReason(e.target.value)} rows={3} />
           <div className="flex gap-2 justify-end">
@@ -231,7 +231,7 @@ export default function ClientBookingsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Leave a Review</DialogTitle>
-            <DialogDescription>How was <strong>{reviewTarget?.service?.title}</strong>?</DialogDescription>
+            <DialogDescription>How was <strong>{reviewTarget?.service_title}</strong>?</DialogDescription>
           </DialogHeader>
           <div className="flex gap-1">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -256,10 +256,10 @@ export default function ClientBookingsPage() {
           <DialogHeader className="px-4 pt-4 pb-3 border-b border-border shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base">
               <MessageCircle className="w-4 h-4" />
-              Chat — {chatBooking?.service?.title}
+              Chat — {chatBooking?.service_title}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Provider: {chatBooking?.service?.provider_name}
+              Provider: {chatBooking?.provider_username}
             </DialogDescription>
           </DialogHeader>
 

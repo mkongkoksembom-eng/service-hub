@@ -40,9 +40,9 @@ function BookingRow({ b }) {
     <tr className="border-b border-border last:border-0 hover:bg-secondary/40 transition-colors">
       <td className="py-3 px-4 text-sm font-medium text-foreground">#{b.id}</td>
       <td className="py-3 px-4 text-sm text-muted-foreground truncate max-w-[160px]">
-        {b.service?.title}
+        {b.service_title}
       </td>
-      <td className="py-3 px-4 text-sm text-muted-foreground">{b.client?.username}</td>
+      <td className="py-3 px-4 text-sm text-muted-foreground">{b.client_username}</td>
       <td className="py-3 px-4 text-sm text-muted-foreground">
         {new Date(b.scheduled_date).toLocaleDateString()}
       </td>

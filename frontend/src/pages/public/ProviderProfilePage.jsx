@@ -110,14 +110,14 @@ function ReviewCard({ review }) {
       <div className="flex items-start gap-3">
         <Avatar className="w-9 h-9 shrink-0">
           <AvatarFallback className="bg-foreground text-background text-xs font-semibold">
-            {review.client?.username?.slice(0, 2).toUpperCase() || "?"}
+            {review.client_username?.slice(0, 2).toUpperCase() || "?"}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
             <div>
               <p className="font-semibold text-sm text-foreground leading-tight">
-                {review.client?.username}
+                {review.client_username}
               </p>
               {review.service_title && (
                 <p className="text-xs text-muted-foreground mt-0.5">

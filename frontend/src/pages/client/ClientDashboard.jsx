@@ -87,7 +87,7 @@ export default function ClientDashboard() {
             : recent.map(b => (
               <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                 <div className="space-y-0.5">
-                  <p className="font-medium text-sm">{b.service?.title}</p>
+                  <p className="font-medium text-sm">{b.service_title}</p>
                   <p className="text-xs text-muted-foreground">{new Date(b.scheduled_date).toLocaleDateString()}</p>
                 </div>
                 <span className={`text-xs font-medium px-2 py-1 rounded-full capitalize ${STATUS_COLORS[b.status]}`}>
