@@ -58,9 +58,10 @@ class SendOTPView(APIView):
     def post(self, request):
         import random
         from django.core.cache import cache
-        from django.core.mail import send_mail
+        from django.core.mail import EmailMultiAlternatives
         from django.core.validators import validate_email as _validate_email
         from django.core.exceptions import ValidationError as DjangoValidationError
+        from shared import email_layout as L
 
         email = request.data.get("email", "").strip().lower()
         if not email:
@@ -77,18 +78,32 @@ class SendOTPView(APIView):
         otp = f"{random.randint(100000, 999999)}"
         cache.set(f"reg_otp:{email}", otp, timeout=600)
 
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+        html_body = L.layout(
+            L.greeting("Welcome to Service Hub")
+            + L.paragraph("To verify your email address, enter the code below during registration. It expires in <strong>10 minutes</strong>.")
+            + L.otp_box(otp)
+            + L.notice("&#128274;&nbsp; Do not share this code with anyone. Service Hub will never ask for your code.")
+            + L.divider()
+            + L.paragraph(L.muted("If you did not request this code you can safely ignore this email.")),
+            frontend_url=frontend_url,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+        )
+        text_body = (
+            f"Your Service Hub verification code is:\n\n"
+            f"    {otp}\n\n"
+            f"This code expires in 10 minutes. Do not share it with anyone."
+        )
+
         try:
-            send_mail(
+            msg = EmailMultiAlternatives(
                 subject="Your Service Hub verification code",
-                message=(
-                    f"Your Service Hub verification code is:\n\n"
-                    f"    {otp}\n\n"
-                    f"This code expires in 10 minutes. Do not share it with anyone."
-                ),
+                body=text_body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
+                to=[email],
             )
+            msg.attach_alternative(html_body, "text/html")
+            msg.send(fail_silently=False)
         except Exception:
             cache.delete(f"reg_otp:{email}")
             return Response(
