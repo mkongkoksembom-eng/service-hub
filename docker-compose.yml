@@ -16,6 +16,7 @@ x-common-env: &common-env
   ALLOWED_HOSTS: "*"
   INTERNAL_API_KEY: "${INTERNAL_API_KEY}"
   CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-http://localhost}"
+  FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
 
 x-service-urls: &service-urls
   USER_SERVICE_URL: "http://user_service:8001"
