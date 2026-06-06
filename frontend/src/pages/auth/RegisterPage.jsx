@@ -147,7 +147,7 @@ export default function RegisterPage() {
       toast.success("Verification code sent — check your email.")
     } catch (err) {
       const errs = err.response?.data
-      const msg = errs ? Object.values(errs).flat().join(" ") : "Could not send verification email."
+      const msg = typeof errs === "object" ? Object.values(errs).flat().join(" ") : "Could not send verification email."
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -191,7 +191,7 @@ export default function RegisterPage() {
       navigate(user.role === "provider" ? "/provider/dashboard" : "/client/dashboard")
     } catch (err) {
       const errs = err.response?.data
-      const msg = errs ? Object.values(errs).flat().join(" ") : "Registration failed."
+      const msg = typeof errs === "object" ? Object.values(errs).flat().join(" ") : "Registration failed."
       toast.error(msg)
     } finally {
       setLoading(false)
